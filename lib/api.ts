@@ -51,7 +51,7 @@ export async function savePushToken(userId: number, token: string) {
     const res = await fetch(`${API_URL}/push-token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, token }),
+        body: JSON.stringify({ userId, pushToken: token }),
     });
 
     const responseText = await res.text();

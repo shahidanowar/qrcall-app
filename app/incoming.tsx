@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, Image, TouchableOpacity, Animated } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
 import { useWebRTCContext } from '../lib/WebRTCContext';
@@ -12,9 +12,17 @@ interface Params {
 
 export default function IncomingCall() {
     const router = useRouter();
-    const { peerJoined, rejectCall } = useWebRTCContext();
+        const { roomId, callerName: callerNameFromParams } = useLocalSearchParams<{ roomId: string; callerName: string }>();
+    const { peerJoined, rejectCall, joinRoom } = useWebRTCContext();
 
-    const [callerName, setCallerName] = useState('Caller');
+  useEffect(() => {
+    if (roomId) {
+      console.log(`[IncomingScreen] Joining room: ${roomId}`);
+      joinRoom(roomId as string);
+    }
+  }, [roomId, joinRoom]);
+
+        const [callerName, setCallerName] = useState(callerNameFromParams || 'Caller');
     const sound = useRef<Audio.Sound | null>(null);
     
     // Animation values

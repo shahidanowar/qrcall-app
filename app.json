@@ -19,6 +19,7 @@
       },
       "edgeToEdgeEnabled": true,
       "permissions": [
+        "android.permission.USE_FULL_SCREEN_INTENT",
         "android.permission.ACCESS_NETWORK_STATE",
         "android.permission.CAMERA",
         "android.permission.INTERNET",
@@ -27,11 +28,15 @@
         "android.permission.SYSTEM_ALERT_WINDOW",
         "android.permission.WAKE_LOCK",
         "android.permission.BLUETOOTH",
-        "android.permission.VIBRATE",
-        "android.permission.USE_FULL_SCREEN_INTENT"
+        "android.permission.VIBRATE"
       ],
       "package": "com.shahidreact.QRing",
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "notification": {
+        "icon": "./assets/images/icon.png",
+        "color": "#ffffff",
+        "defaultChannelId": "call_channel"
+      }
     },
     "web": {
       "bundler": "metro",
@@ -67,9 +72,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "b869896d-a985-46fb-ad6b-33fd987dad05"
+        "projectId": "22bf3782-2f20-43b3-851a-647946f8bf4b"
       }
     },
-    "owner": "shahidacts"
+    "owner": "shahidreact"
   }
 }

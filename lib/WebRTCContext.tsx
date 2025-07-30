@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect, useRef } from 'react';
 import useWebRTC from './useWebRTC';
+import { Platform } from 'react-native';
 import { router, usePathname } from 'expo-router';
 import { FIXED_ROOM_ID } from '../lib/config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -128,6 +129,7 @@ export function WebRTCProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const joinRoom = useCallback((roomId: string) => {
+
     if (webrtc.isConnected) {
       webrtc.joinRoom(roomId);
     }

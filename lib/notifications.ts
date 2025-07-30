@@ -4,6 +4,7 @@ import { Platform } from 'react-native';
 import { router } from 'expo-router';
 import { rejectCall } from './api';
 
+
 // --- Basic Setup and Registration ---
 
 /**
@@ -11,13 +12,13 @@ import { rejectCall } from './api';
  */
 const CALL_CHANNEL_ID = 'call_channel';
 
-async function setupNotificationChannels() {
+export async function setupNotificationChannels() {
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync(CALL_CHANNEL_ID, {
       name: 'Incoming Calls',
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 500, 250, 500], // Custom vibration for calls
-      sound: 'ringtone.wav', // IMPORTANT: Add 'ringtone.wav' to your /assets folder
+      importance: Notifications.AndroidImportance.MAX, // Use MAX for heads-up display
+      sound: 'ringtone.wav', // Explicitly set the sound file for the channel
+      vibrationPattern: [0, 500, 1000, 500, 1000, 500], // A more distinct call vibration
       lightColor: '#FF231F7C',
       bypassDnd: true, // Override Do Not Disturb for incoming calls
     });
@@ -89,58 +90,84 @@ export async function setupNotificationCategories() {
  */
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
+    shouldPlaySound: false, // Make the notification silent
     shouldSetBadge: true,
     shouldShowBanner: true, // For iOS
     shouldShowList: true, // For Android
   }),
 });
 
+// 1. Define the shape of our notification data
+interface NotificationData {
+  type: 'call' | 'cancel_call';
+  roomId: string;
+  callerName?: string;
+}
+
+// 2. Create a Type Guard to safely check if an object is valid NotificationData
+function isNotificationData(data: any): data is NotificationData {
+  return (
+    data &&
+    (data.type === 'call' || data.type === 'cancel_call') &&
+    typeof data.roomId === 'string'
+  );
+}
+
 /**
- * Sets up global listeners to respond to notification events.
- * This should be called once at the root of your app.
+ * This function is called to set up all the global notification listeners for the app.
+ * It should be called once in the root layout file.
  */
 export function setupGlobalNotificationListeners() {
-  // Define a type for our expected notification data
-  interface CallNotificationData {
-    type: 'incoming_call';
-    roomId: string;
-    callerName: string;
-  }
-  // Listener for when a notification is received (foreground)
-  const receivedSubscription = Notifications.addNotificationReceivedListener(notification => {
-    console.log('[Notifications] Received:', notification.request.content.title);
+  // Listener for when a notification is received (app can be foreground or background)
+  const receivedSubscription = Notifications.addNotificationReceivedListener(async (notification) => {
+    const data = notification.request.content.data;
+
+    if (!isNotificationData(data)) {
+      console.warn('[Notifications] Received notification with invalid data:', data);
+      return;
+    }
+
+    console.log('[Notifications] Received in-app:', data);
+
+    if (data.type === 'cancel_call') {
+      // Dismiss the notification UI to stop the ringtone
+      const presentedNotifications = await Notifications.getPresentedNotificationsAsync();
+      for (const presentedNotification of presentedNotifications) {
+        if (isNotificationData(presentedNotification.request.content.data) && presentedNotification.request.content.data.roomId === data.roomId) {
+          await Notifications.dismissNotificationAsync(presentedNotification.request.identifier);
+          break;
+        }
+      }
+    }
   });
 
-  // Listener for when a user interacts with a notification (taps, dismisses, etc.)
+  // Listener for when a user interacts with a notification (taps a button, etc.)
   const responseSubscription = Notifications.addNotificationResponseReceivedListener(async response => {
-    const { actionIdentifier, notification } = response;
-        const data = notification.request.content.data as unknown as CallNotificationData;
+    const data = response.notification.request.content.data;
+    const { actionIdentifier } = response;
 
-    if (data?.type !== 'incoming_call') return;
+    if (!isNotificationData(data)) {
+      console.warn('[Notifications] Responded to notification with invalid data:', data);
+      return;
+    }
 
     console.log(`[Notifications] User action: ${actionIdentifier} for room ${data.roomId}`);
 
     if (actionIdentifier === 'accept' || actionIdentifier === Notifications.DEFAULT_ACTION_IDENTIFIER) {
-      // Navigate to the incoming call screen
-      router.replace({ pathname: '/incoming', params: { roomId: data.roomId, callerName: data.callerName } });
+      router.push({ pathname: '/ongoing', params: { roomId: data.roomId } });
     } else if (actionIdentifier === 'decline') {
       try {
         await rejectCall(data.roomId);
         console.log(`Successfully rejected call for room ${data.roomId}`);
       } catch (error) {
-        console.error('Failed to reject call:', error);
+        console.error('Failed to reject call via API:', error);
       }
     }
   });
 
-  console.log('[Notifications] Global listeners attached.');
-
-  // Return a cleanup function to be used in useEffect
+  // Return a cleanup function to unsubscribe from the listeners
   return () => {
     Notifications.removeNotificationSubscription(receivedSubscription);
     Notifications.removeNotificationSubscription(responseSubscription);
-    console.log('[Notifications] Global listeners removed.');
   };
 }
